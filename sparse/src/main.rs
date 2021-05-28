@@ -50,12 +50,13 @@ fn sparse_dot_product_distance(helper: &mut SparseSet<f64>, first: &SparseVector
     return 1.0 - product;
 }
 
-// TODO: vectors deque should suffice with offsets
 // TODO: sparse set also for inverted index
 // TODO: verify mean/median candidate set size
+// TODO: candidate set can also be a sparse set
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
     let mut i = 0;
+    let mut dropped_so_far = 0;
 
     let bar = ProgressBar::new(7_000_000);
 
@@ -63,8 +64,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
     let mut cosine_helper_set: SparseSet<f64> = SparseSet::with_capacity(VOC_SIZE);
     let mut inverted_index: HashMap<usize, VecDeque<usize>> = HashMap::new();
-    let mut vectors: VecDeque<usize> = VecDeque::new();
-    let mut vectors_map: HashMap<usize, SparseVector> = HashMap::new();
+    let mut vectors: VecDeque<SparseVector> = VecDeque::new();
     let mut nearest_neighbors: Vec<(usize, f64)> = Vec::new();
 
     for result in rdr.deserialize() {
@@ -85,6 +85,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         if record.dimensions.is_empty() {
             nearest_neighbors.push((i, 0.0));
             i += 1;
+            vectors.push_back(sparse_vector);
             continue;
         }
 
@@ -124,9 +125,9 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         let mut best_candidate: Option<usize> = None;
 
         for candidate in candidates.iter() {
-            let other_sparse_vector = vectors_map.get(candidate).unwrap();
+            let other_sparse_vector = &vectors[*candidate - dropped_so_far];
 
-            let d = sparse_dot_product_distance(&mut cosine_helper_set, &sparse_vector, other_sparse_vector);
+            let d = sparse_dot_product_distance(&mut cosine_helper_set, &sparse_vector, &other_sparse_vector);
 
             // println!("{:?}", d);
 
@@ -150,18 +151,18 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         }
 
         // Adding tweet to the window
-        vectors_map.insert(i, sparse_vector);
-        vectors.push_back(i);
+        vectors.push_back(sparse_vector);
 
         // Dropping tweets from the window
-        if vectors_map.len() > WINDOW {
+        if vectors.len() > WINDOW {
             let to_remove = vectors.pop_front().unwrap();
-            let other_sparse_vector = vectors_map.remove(&to_remove).unwrap();
 
-            for (dim, _) in other_sparse_vector.iter() {
+            for (dim, _) in to_remove.iter() {
                 let deque = inverted_index.get_mut(dim).unwrap();
                 deque.pop_front().unwrap();
             }
+
+            dropped_so_far += 1;
         }
 
         i += 1;
