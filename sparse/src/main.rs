@@ -13,12 +13,12 @@ struct Record {
 
 type SparseVector = HashMap<u32, f64>;
 
-// const LIMIT: usize = 10_000;
-const LIMIT: usize = usize::MAX;
+const LIMIT: usize = 100_000;
+// const LIMIT: usize = usize::MAX;
 
 const THRESHOLD: f64 = 0.69;
 const WINDOW: usize = 1_500_000;
-const TICK: usize = 10_000;
+const TICK: usize = 1_000;
 const QUERY_SIZE: u8 = 5;
 
 fn sparse_dot_product_distance(first: &SparseVector, second: &SparseVector) -> f64 {
@@ -49,7 +49,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
     let bar = ProgressBar::new(7_000_000);
 
-    bar.set_style(ProgressStyle::default_bar().template("[{elapsed}] < [{eta}] {bar:70} {pos:>7}/{len:7}"));
+    bar.set_style(ProgressStyle::default_bar().template("[{elapsed_precise}] < [{eta_precise}] {bar:70} {pos:>7}/{len:7}"));
 
     let mut inverted_index: HashMap<u32, VecDeque<usize>> = HashMap::new();
     let mut vectors: VecDeque<usize> = VecDeque::new();
