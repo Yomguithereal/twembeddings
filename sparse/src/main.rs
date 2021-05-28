@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque, HashSet};
 use std::process;
 
 use serde::Deserialize;
-use indicatif::ProgressBar;
+use indicatif::{ProgressBar, ProgressStyle};
 
 #[derive(Debug, Deserialize)]
 struct Record {
@@ -13,11 +13,13 @@ struct Record {
 
 type SparseVector = HashMap<u32, f64>;
 
-const LIMIT: usize = 10_000;
-// const LIMIT: usize = usize::MAX;
+// const LIMIT: usize = 10_000;
+const LIMIT: usize = usize::MAX;
 
 const THRESHOLD: f64 = 0.69;
 const WINDOW: usize = 1_500_000;
+const TICK: usize = 10_000;
+const QUERY_SIZE: u8 = 5;
 
 fn sparse_dot_product_distance(first: &SparseVector, second: &SparseVector) -> f64 {
     let mut shortest = first;
@@ -41,14 +43,17 @@ fn sparse_dot_product_distance(first: &SparseVector, second: &SparseVector) -> f
     return 1.0 - product;
 }
 
-fn clustering<'a>() -> Result<(), Box<dyn Error>> {
+fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
     let mut i = 0;
 
     let bar = ProgressBar::new(7_000_000);
 
-    let mut index: HashMap<u32, VecDeque<usize>> = HashMap::new();
-    let mut vectors: HashMap<usize, SparseVector> = HashMap::new();
+    bar.set_style(ProgressStyle::default_bar().template("[{elapsed}] < [{eta}] {bar:70} {pos:>7}/{len:7}"));
+
+    let mut inverted_index: HashMap<u32, VecDeque<usize>> = HashMap::new();
+    let mut vectors: VecDeque<usize> = VecDeque::new();
+    let mut vectors_map: HashMap<usize, SparseVector> = HashMap::new();
     let mut nearest_neighbors: Vec<(usize, f64)> = Vec::new();
 
     for result in rdr.deserialize() {
@@ -56,8 +61,8 @@ fn clustering<'a>() -> Result<(), Box<dyn Error>> {
             break;
         }
 
-        if i % 10_000 == 0 {
-            bar.inc(10_000);
+        if i % TICK == 0 {
+            bar.inc(TICK as u64);
         }
 
         let record: Record = result?;
@@ -89,14 +94,18 @@ fn clustering<'a>() -> Result<(), Box<dyn Error>> {
 
         // Indexing and gathering candidates
         let mut candidates: HashSet<usize> = HashSet::new();
+        let mut dim_tested: u8 = 0;
 
         for dim in dimensions {
 
             // TODO: only query first 5 dimensions later
-            let deque = index.entry(dim).or_default();
+            let deque = inverted_index.entry(dim).or_default();
 
-            for candidate in deque.iter() {
-                candidates.insert(*candidate);
+            if dim_tested < QUERY_SIZE {
+                for candidate in deque.iter() {
+                    candidates.insert(*candidate);
+                }
+                dim_tested += 1;
             }
 
             deque.push_back(i);
@@ -109,7 +118,7 @@ fn clustering<'a>() -> Result<(), Box<dyn Error>> {
         let mut best_candidate: Option<usize> = None;
 
         for candidate in candidates.iter() {
-            let other_sparse_vector = vectors.get(candidate).unwrap();
+            let other_sparse_vector = vectors_map.get(candidate).unwrap();
 
             let d = sparse_dot_product_distance(&sparse_vector, other_sparse_vector);
 
@@ -134,28 +143,36 @@ fn clustering<'a>() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        vectors.insert(i, sparse_vector.to_owned());
+        // Adding tweet to the window
+        vectors_map.insert(i, sparse_vector.to_owned());
+        vectors.push_back(i);
 
-        // T.append(t1)
+        // Dropping tweets from the window
+        if vectors_map.len() > WINDOW {
+            let to_remove = vectors.pop_front().unwrap();
+            let other_sparse_vector = vectors_map.remove(&to_remove).unwrap();
 
-        // if len(T) > window:
-        //     t3 = T.popleft()
+            for dim in other_sparse_vector.keys() {
+                let deque = inverted_index.get_mut(dim).unwrap();
+                deque.pop_front().unwrap();
+            }
+        }
 
-        //     for dim in t3['vector'].keys():
-        //         I[dim].popleft()
         i += 1;
     }
 
     bar.finish();
 
-    let with_nearest_neighbor: Vec<(usize, f64)> = nearest_neighbors
-        .into_iter()
-        .enumerate()
-        .filter(|(j, c)| j != &c.0)
-        .map(|(_, c)| c)
-        .collect();
+    // println!("{:?}", nearest_neighbors.len());
 
-    println!("{:?}, {:?}", with_nearest_neighbor, with_nearest_neighbor.len());
+    // let with_nearest_neighbor: Vec<(usize, f64)> = nearest_neighbors
+    //     .into_iter()
+    //     .enumerate()
+    //     .filter(|(j, c)| j != &c.0)
+    //     .map(|(_, c)| c)
+    //     .collect();
+
+    // println!("{:?}, {:?}", with_nearest_neighbor, with_nearest_neighbor.len());
 
     Ok(())
 }

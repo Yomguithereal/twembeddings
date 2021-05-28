@@ -65,6 +65,8 @@ with open('data/vectors.csv', 'w') as f:
             if token in TOKEN_IDS
         ]
 
+        norm = math.sqrt(sum(w * w for _, w in vector))
+        vector = [(_id, w / norm) for _id, w in vector]
         vector = sorted(vector, key=lambda t: (t[1], t[0]), reverse=True)
 
         writer.writerow([
