@@ -14,7 +14,7 @@ struct Record {
 
 type SparseVector = Vec<(usize, f64)>;
 
-const LIMIT: usize = 10_000;
+const LIMIT: usize = 50_000;
 // const LIMIT: usize = usize::MAX;
 
 const THRESHOLD: f64 = 0.69;
@@ -39,11 +39,8 @@ fn sparse_dot_product_distance(helper: &mut SparseSet<f64>, first: &SparseVector
     }
 
     for (dim, w2) in longest {
-        let w1 = helper.get(*dim);
-
-        if let Some(w1) = w1 {
-            product += w1 * w2;
-        }
+        let w1 = helper.get(*dim).unwrap_or(&0.0);
+        product += w1 * w2;
     }
 
     helper.clear();
