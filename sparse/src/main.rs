@@ -2,6 +2,7 @@ use std::error::Error;
 use std::collections::{VecDeque, HashSet};
 use std::process;
 
+use rayon::prelude::*;
 use sparseset::SparseSet;
 use serde::Deserialize;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -14,8 +15,8 @@ struct Record {
 
 type SparseVector = Vec<(usize, f64)>;
 
-const LIMIT: usize = 50_000;
-// const LIMIT: usize = usize::MAX;
+// const LIMIT: usize = 100_000;
+const LIMIT: usize = usize::MAX;
 
 const THRESHOLD: f64 = 0.69;
 const WINDOW: usize = 1_500_000;
@@ -122,23 +123,22 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         // println!("{:?}", candidates.len());
 
         // Finding the nearest neighbor
+        let distances: Vec<(usize, f64)> = candidates.par_iter().map(|candidate| {
+            let other_sparse_vector = &vectors[*candidate - dropped_so_far];
+            return (*candidate, sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector));
+        }).collect();
+
         let mut best_distance = 2.0;
         let mut best_candidate: Option<usize> = None;
 
-        for candidate in candidates.iter() {
-            let other_sparse_vector = &vectors[*candidate - dropped_so_far];
-
-            let d = sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector);
-
-            // println!("{:?}", d);
-
+        for (c, d) in distances {
             if d > THRESHOLD {
                 continue;
             }
 
             if d < best_distance {
                 best_distance = d;
-                best_candidate = Some(*candidate);
+                best_candidate = Some(c);
             }
         }
 
