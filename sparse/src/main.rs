@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::collections::{HashMap, VecDeque, HashSet};
+use std::collections::{VecDeque, HashSet};
 use std::process;
 
 use sparseset::SparseSet;
@@ -14,7 +14,7 @@ struct Record {
 
 type SparseVector = Vec<(usize, f64)>;
 
-const LIMIT: usize = 100_000;
+const LIMIT: usize = 10_000;
 // const LIMIT: usize = usize::MAX;
 
 const THRESHOLD: f64 = 0.69;
@@ -34,11 +34,11 @@ fn sparse_dot_product_distance(helper: &mut SparseSet<f64>, first: &SparseVector
 
     let mut product = 0.0;
 
-    for (dim, w1) in shortest.iter() {
+    for (dim, w1) in shortest {
         helper.insert(*dim, *w1);
     }
 
-    for (dim, w2) in longest.iter() {
+    for (dim, w2) in longest {
         let w1 = helper.get(*dim);
 
         if let Some(w1) = w1 {
@@ -63,7 +63,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
     bar.set_style(ProgressStyle::default_bar().template("[{elapsed_precise}] < [{eta_precise}] {bar:70} {pos:>7}/{len:7}"));
 
     let mut cosine_helper_set: SparseSet<f64> = SparseSet::with_capacity(VOC_SIZE);
-    let mut inverted_index: HashMap<usize, VecDeque<usize>> = HashMap::new();
+    let mut inverted_index: SparseSet<VecDeque<usize>> = SparseSet::with_capacity(VOC_SIZE);
     let mut vectors: VecDeque<SparseVector> = VecDeque::new();
     let mut nearest_neighbors: Vec<(usize, f64)> = Vec::new();
 
@@ -106,7 +106,11 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         let mut dim_tested: u8 = 0;
 
         for (dim, _) in sparse_vector.iter() {
-            let deque = inverted_index.entry(*dim).or_default();
+            if !inverted_index.contains(*dim) {
+                inverted_index.insert(*dim, VecDeque::new());
+            }
+
+            let deque = inverted_index.get_mut(*dim).unwrap();
 
             if dim_tested < QUERY_SIZE {
                 for candidate in deque.iter() {
@@ -158,7 +162,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             let to_remove = vectors.pop_front().unwrap();
 
             for (dim, _) in to_remove.iter() {
-                let deque = inverted_index.get_mut(dim).unwrap();
+                let deque = inverted_index.get_mut(*dim).unwrap();
                 deque.pop_front().unwrap();
             }
 
