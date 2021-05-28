@@ -43,10 +43,12 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
 }
 
 // TODO: verify mean/median candidate set size
-// TODO: try rayon
 // TODO: use a max clamp for normalize and for distance
 // TODO: candidate set can also be a sparse set?
 // TODO: use rust fmt
+// TODO: sanity tests
+// TODO: canopy + canopy variant where dim has exactly same value?
+// TODO: start from window directly to easy test
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
     let mut i = 0;
