@@ -12,7 +12,7 @@ struct Record {
     weights: String
 }
 
-type SparseVector = HashMap<usize, f64>;
+type SparseVector = Vec<(usize, f64)>;
 
 const LIMIT: usize = 100_000;
 // const LIMIT: usize = usize::MAX;
@@ -50,7 +50,8 @@ fn sparse_dot_product_distance(helper: &mut SparseSet<f64>, first: &SparseVector
     return 1.0 - product;
 }
 
-// TODO: use sparse set and hashmap-less vectors, vectors deque should suffice with offsets
+// TODO: vectors deque should suffice with offsets
+// TODO: sparse set also for inverted index
 // TODO: verify mean/median candidate set size
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
@@ -79,7 +80,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
         // println!("{:?}", record);
 
-        let mut sparse_vector: SparseVector = HashMap::new();
+        let mut sparse_vector: SparseVector = Vec::new();
 
         if record.dimensions.is_empty() {
             nearest_neighbors.push((i, 0.0));
@@ -91,14 +92,11 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             .split("|")
             .zip(record.weights.split("|"));
 
-        let mut dimensions: Vec<usize> = Vec::new();
-
         for (dimension, weight) in iterator {
             let dimension: usize = dimension.parse()?;
             let weight: f64 = weight.parse()?;
             // println!("Dimension: {:?}, Weight: {:?}", dimension, weight);
-            dimensions.push(dimension);
-            sparse_vector.insert(dimension, weight);
+            sparse_vector.push((dimension, weight));
             // println!("Vector: {:?}", sparse_vector);
         }
 
@@ -106,8 +104,8 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         let mut candidates: HashSet<usize> = HashSet::new();
         let mut dim_tested: u8 = 0;
 
-        for dim in dimensions {
-            let deque = inverted_index.entry(dim).or_default();
+        for (dim, _) in sparse_vector.iter() {
+            let deque = inverted_index.entry(*dim).or_default();
 
             if dim_tested < QUERY_SIZE {
                 for candidate in deque.iter() {
@@ -152,7 +150,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         }
 
         // Adding tweet to the window
-        vectors_map.insert(i, sparse_vector.to_owned());
+        vectors_map.insert(i, sparse_vector);
         vectors.push_back(i);
 
         // Dropping tweets from the window
@@ -160,7 +158,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             let to_remove = vectors.pop_front().unwrap();
             let other_sparse_vector = vectors_map.remove(&to_remove).unwrap();
 
-            for dim in other_sparse_vector.keys() {
+            for (dim, _) in other_sparse_vector.iter() {
                 let deque = inverted_index.get_mut(dim).unwrap();
                 deque.pop_front().unwrap();
             }
