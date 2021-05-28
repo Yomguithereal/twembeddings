@@ -2,6 +2,7 @@ use std::error::Error;
 use std::collections::{HashMap, VecDeque, HashSet};
 use std::process;
 
+use sparseset::SparseSet;
 use serde::Deserialize;
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -11,7 +12,7 @@ struct Record {
     weights: String
 }
 
-type SparseVector = HashMap<u32, f64>;
+type SparseVector = HashMap<usize, f64>;
 
 const LIMIT: usize = 100_000;
 // const LIMIT: usize = usize::MAX;
@@ -20,8 +21,9 @@ const THRESHOLD: f64 = 0.69;
 const WINDOW: usize = 1_500_000;
 const TICK: usize = 1_000;
 const QUERY_SIZE: u8 = 5;
+const VOC_SIZE: usize = 300_000;
 
-fn sparse_dot_product_distance(first: &SparseVector, second: &SparseVector) -> f64 {
+fn sparse_dot_product_distance(helper: &mut SparseSet<f64>, first: &SparseVector, second: &SparseVector) -> f64 {
     let mut shortest = first;
     let mut longest = second;
 
@@ -33,16 +35,23 @@ fn sparse_dot_product_distance(first: &SparseVector, second: &SparseVector) -> f
     let mut product = 0.0;
 
     for (dim, w1) in shortest.iter() {
-        let w2 = longest.get(dim);
+        helper.insert(*dim, *w1);
+    }
 
-        if let Some(w2) = w2 {
+    for (dim, w2) in longest.iter() {
+        let w1 = helper.get(*dim);
+
+        if let Some(w1) = w1 {
             product += w1 * w2;
         }
     }
 
+    helper.clear();
     return 1.0 - product;
 }
 
+// TODO: use sparse set and hashmap-less vectors, vectors deque should suffice with offsets
+// TODO: verify mean/median candidate set size
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
     let mut i = 0;
@@ -51,7 +60,8 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
     bar.set_style(ProgressStyle::default_bar().template("[{elapsed_precise}] < [{eta_precise}] {bar:70} {pos:>7}/{len:7}"));
 
-    let mut inverted_index: HashMap<u32, VecDeque<usize>> = HashMap::new();
+    let mut cosine_helper_set: SparseSet<f64> = SparseSet::with_capacity(VOC_SIZE);
+    let mut inverted_index: HashMap<usize, VecDeque<usize>> = HashMap::new();
     let mut vectors: VecDeque<usize> = VecDeque::new();
     let mut vectors_map: HashMap<usize, SparseVector> = HashMap::new();
     let mut nearest_neighbors: Vec<(usize, f64)> = Vec::new();
@@ -81,10 +91,10 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             .split("|")
             .zip(record.weights.split("|"));
 
-        let mut dimensions: Vec<u32> = Vec::new();
+        let mut dimensions: Vec<usize> = Vec::new();
 
         for (dimension, weight) in iterator {
-            let dimension: u32 = dimension.parse()?;
+            let dimension: usize = dimension.parse()?;
             let weight: f64 = weight.parse()?;
             // println!("Dimension: {:?}, Weight: {:?}", dimension, weight);
             dimensions.push(dimension);
@@ -118,7 +128,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         for candidate in candidates.iter() {
             let other_sparse_vector = vectors_map.get(candidate).unwrap();
 
-            let d = sparse_dot_product_distance(&sparse_vector, other_sparse_vector);
+            let d = sparse_dot_product_distance(&mut cosine_helper_set, &sparse_vector, other_sparse_vector);
 
             // println!("{:?}", d);
 

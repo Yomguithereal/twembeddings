@@ -176,7 +176,14 @@ dependencies = [
  "csv",
  "indicatif",
  "serde",
+ "sparseset",
 ]
+
+[[package]]
+name = "sparseset"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f70f6b66af6bb50d967a5b801a1b55e02a7e615c1a95bcabeb8a4a1e8e7a8ff3"
 
 [[package]]
 name = "syn"

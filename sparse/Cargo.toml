@@ -8,3 +8,4 @@ edition = "2018"
 csv = "1.1"
 indicatif = "0.16.2"
 serde = { version = "1", features = ["derive"] }
+sparseset = "1.0.0"
