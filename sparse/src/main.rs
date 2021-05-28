@@ -97,8 +97,6 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         let mut dim_tested: u8 = 0;
 
         for dim in dimensions {
-
-            // TODO: only query first 5 dimensions later
             let deque = inverted_index.entry(dim).or_default();
 
             if dim_tested < QUERY_SIZE {
