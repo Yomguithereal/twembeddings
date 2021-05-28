@@ -31,7 +31,14 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
         product += w1 * w2;
     }
 
-    return 1.0 - product;
+    product = 1.0 - product;
+
+    // Precision error
+    if product < 0.0 {
+        return 0.0;
+    }
+
+    return product;
 }
 
 // TODO: verify mean/median candidate set size
