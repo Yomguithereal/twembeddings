@@ -47,9 +47,8 @@ fn sparse_dot_product_distance(helper: &mut SparseSet<f64>, first: &SparseVector
     return 1.0 - product;
 }
 
-// TODO: sparse set also for inverted index
 // TODO: verify mean/median candidate set size
-// TODO: candidate set can also be a sparse set
+// TODO: candidate set can also be a sparse set?
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
     let mut i = 0;
@@ -63,6 +62,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
     let mut inverted_index: SparseSet<VecDeque<usize>> = SparseSet::with_capacity(VOC_SIZE);
     let mut vectors: VecDeque<SparseVector> = VecDeque::new();
     let mut nearest_neighbors: Vec<(usize, f64)> = Vec::new();
+    let mut candidates: HashSet<usize> = HashSet::with_capacity(10_000);
 
     for result in rdr.deserialize() {
         if i >= LIMIT {
@@ -99,7 +99,6 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         }
 
         // Indexing and gathering candidates
-        let mut candidates: HashSet<usize> = HashSet::new();
         let mut dim_tested: u8 = 0;
 
         for (dim, _) in sparse_vector.iter() {
@@ -141,6 +140,8 @@ fn clustering() -> Result<(), Box<dyn Error>> {
                 best_candidate = Some(*candidate);
             }
         }
+
+        candidates.clear();
 
         match best_candidate {
             Some(best_candidate_index) => {
