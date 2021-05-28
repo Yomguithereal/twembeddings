@@ -23,31 +23,20 @@ const TICK: usize = 1_000;
 const QUERY_SIZE: u8 = 5;
 const VOC_SIZE: usize = 300_000;
 
-fn sparse_dot_product_distance(helper: &mut SparseSet<f64>, first: &SparseVector, second: &SparseVector) -> f64 {
-    let mut shortest = first;
-    let mut longest = second;
-
-    if first.len() > second.len() {
-        shortest = second;
-        longest = first;
-    }
-
+fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) -> f64 {
     let mut product = 0.0;
 
-    for (dim, w1) in shortest {
-        helper.insert(*dim, *w1);
-    }
-
-    for (dim, w2) in longest {
+    for (dim, w2) in other {
         let w1 = helper.get(*dim).unwrap_or(&0.0);
         product += w1 * w2;
     }
 
-    helper.clear();
     return 1.0 - product;
 }
 
 // TODO: verify mean/median candidate set size
+// TODO: try rayon
+// TODO: use a max clamp for normalize and for distance
 // TODO: candidate set can also be a sparse set?
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
@@ -86,6 +75,8 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             continue;
         }
 
+        cosine_helper_set.clear();
+
         let iterator = record.dimensions
             .split("|")
             .zip(record.weights.split("|"));
@@ -96,6 +87,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             // println!("Dimension: {:?}, Weight: {:?}", dimension, weight);
             sparse_vector.push((dimension, weight));
             // println!("Vector: {:?}", sparse_vector);
+            cosine_helper_set.insert(dimension, weight);
         }
 
         // Indexing and gathering candidates
@@ -127,7 +119,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         for candidate in candidates.iter() {
             let other_sparse_vector = &vectors[*candidate - dropped_so_far];
 
-            let d = sparse_dot_product_distance(&mut cosine_helper_set, &sparse_vector, &other_sparse_vector);
+            let d = sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector);
 
             // println!("{:?}", d);
 
