@@ -94,6 +94,8 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         let mut dim_tested: u8 = 0;
 
         for (dim, _) in sparse_vector.iter() {
+
+            // TODO: do better
             if !inverted_index.contains(*dim) {
                 inverted_index.insert(*dim, VecDeque::new());
             }
