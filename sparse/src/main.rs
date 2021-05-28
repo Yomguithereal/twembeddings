@@ -15,7 +15,7 @@ struct Record {
 
 type SparseVector = Vec<(usize, f64)>;
 
-// const LIMIT: usize = 100_000;
+// const LIMIT: usize = 10_000;
 const LIMIT: usize = usize::MAX;
 
 const THRESHOLD: f64 = 0.69;
@@ -46,6 +46,7 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
 // TODO: try rayon
 // TODO: use a max clamp for normalize and for distance
 // TODO: candidate set can also be a sparse set?
+// TODO: use rust fmt
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
     let mut i = 0;
@@ -123,30 +124,20 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         // println!("{:?}", candidates.len());
 
         // Finding the nearest neighbor
-        let distances: Vec<(usize, f64)> = candidates.par_iter().map(|candidate| {
-            let other_sparse_vector = &vectors[*candidate - dropped_so_far];
-            return (*candidate, sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector));
-        }).collect();
-
-        let mut best_distance = 2.0;
-        let mut best_candidate: Option<usize> = None;
-
-        for (c, d) in distances {
-            if d > THRESHOLD {
-                continue;
-            }
-
-            if d < best_distance {
-                best_distance = d;
-                best_candidate = Some(c);
-            }
-        }
+        let best: Option<(usize, f64)> = candidates
+            .par_iter()
+            .map(|candidate| {
+                let other_sparse_vector = &vectors[*candidate - dropped_so_far];
+                return (*candidate, sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector));
+            })
+            .filter(|x| x.1 < THRESHOLD)
+            .min_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
 
         candidates.clear();
 
-        match best_candidate {
-            Some(best_candidate_index) => {
-                nearest_neighbors.push((best_candidate_index, best_distance));
+        match best {
+            Some((c, d)) => {
+                nearest_neighbors.push((c, d));
             }
             None => {
                 nearest_neighbors.push((i, 0.0));
