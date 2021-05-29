@@ -1,16 +1,16 @@
+use std::collections::{HashSet, VecDeque};
 use std::error::Error;
-use std::collections::{VecDeque, HashSet};
 use std::process;
 
-use rayon::prelude::*;
-use sparseset::SparseSet;
-use serde::Deserialize;
 use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
+use serde::Deserialize;
+use sparseset::SparseSet;
 
 #[derive(Debug, Deserialize)]
-struct Record {
+struct CSVRecord {
     dimensions: String,
-    weights: String
+    weights: String,
 }
 
 type SparseVector = Vec<(usize, f64)>;
@@ -45,7 +45,6 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
 // TODO: verify mean/median candidate set size
 // TODO: use a max clamp for normalize and for distance
 // TODO: candidate set can also be a sparse set?
-// TODO: use rust fmt
 // TODO: sanity tests
 // TODO: canopy + canopy variant where dim has exactly same value?
 // TODO: start from window directly to easy test
@@ -60,7 +59,10 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
     let bar = ProgressBar::new(7_000_000);
 
-    bar.set_style(ProgressStyle::default_bar().template("[{elapsed_precise}] < [{eta_precise}] {bar:70} {pos:>7}/{len:7}"));
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] < [{eta_precise}] {bar:70} {pos:>7}/{len:7}"),
+    );
 
     let mut cosine_helper_set: SparseSet<f64> = SparseSet::with_capacity(VOC_SIZE);
     let mut inverted_index: SparseSet<VecDeque<usize>> = SparseSet::with_capacity(VOC_SIZE);
@@ -77,7 +79,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             bar.inc(TICK as u64);
         }
 
-        let record: Record = result?;
+        let record: CSVRecord = result?;
 
         // println!("{:?}", record);
 
@@ -92,9 +94,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
         cosine_helper_set.clear();
 
-        let iterator = record.dimensions
-            .split("|")
-            .zip(record.weights.split("|"));
+        let iterator = record.dimensions.split("|").zip(record.weights.split("|"));
 
         for (dimension, weight) in iterator {
             let dimension: usize = dimension.parse()?;
@@ -109,7 +109,6 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         let mut dim_tested: u8 = 0;
 
         for (dim, _) in sparse_vector.iter() {
-
             // TODO: do better
             if !inverted_index.contains(*dim) {
                 inverted_index.insert(*dim, VecDeque::new());
@@ -134,7 +133,10 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             .par_iter()
             .map(|candidate| {
                 let other_sparse_vector = &vectors[*candidate - dropped_so_far];
-                return (*candidate, sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector));
+                return (
+                    *candidate,
+                    sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector),
+                );
             })
             .filter(|x| x.1 < THRESHOLD)
             .min_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
