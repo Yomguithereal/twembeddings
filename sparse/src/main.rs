@@ -49,6 +49,10 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
 // TODO: sanity tests
 // TODO: canopy + canopy variant where dim has exactly same value?
 // TODO: start from window directly to easy test
+// TODO: try clippy
+// TODO: sparse set with array
+// TODO: try inlining
+// TODO: try f32
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
     let mut i = 0;
