@@ -39,7 +39,7 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
         return 0.0;
     }
 
-    return product;
+    product
 }
 
 // TODO: verify mean/median candidate set size
@@ -51,6 +51,7 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
 // TODO: try clippy
 // TODO: sparse set with array
 // TODO: try inlining
+// TODO: remove mentions from tokenization, try an upper df filter on proportion?
 // TODO: try f32
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
