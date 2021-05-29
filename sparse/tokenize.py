@@ -8,7 +8,7 @@ from tqdm import tqdm
 from collections import Counter
 
 tokenizer = WordTokenizer(
-    keep=['word', 'mention'],
+    keep=['word'],
     lower=True,
     unidecode=True,
     split_hashtags=True,
@@ -40,6 +40,10 @@ with open(sys.argv[1]) as f:
 
 loading_bar.close()
 print('Size of vocabulary:', len(DOCUMENT_FREQUENCIES))
+
+print('Most frequent tokens:')
+for token, count in DOCUMENT_FREQUENCIES.most_common(50):
+    print('  -', token, count, count / len(DOCUMENTS))
 
 N = len(DOCUMENTS)
 ID = 0

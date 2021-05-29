@@ -52,6 +52,7 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
 // TODO: sparse set with array
 // TODO: try inlining
 // TODO: remove mentions from tokenization, try an upper df filter on proportion?
+// TODO: remove also English stopwords
 // TODO: try f32
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
