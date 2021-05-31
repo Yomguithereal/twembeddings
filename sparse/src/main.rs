@@ -25,7 +25,7 @@ const QUERY_SIZE: u8 = 5;
 const VOC_SIZE: usize = 300_000;
 
 #[inline]
-fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) -> f64 {
+fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &[(usize, f64)]) -> f64 {
     let mut product = 0.0;
 
     for (dim, w2) in other {
@@ -49,7 +49,6 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
 // TODO: sanity tests
 // TODO: canopy + canopy variant where dim has exactly same value?
 // TODO: start from window directly to easy test
-// TODO: try clippy
 // TODO: sparse set with array
 // TODO: what about mentions?
 // TODO: improve the sparse sets myself
@@ -97,7 +96,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
         cosine_helper_set.clear();
 
-        let iterator = record.dimensions.split("|").zip(record.weights.split("|"));
+        let iterator = record.dimensions.split('|').zip(record.weights.split('|'));
 
         for (dimension, weight) in iterator {
             let dimension: usize = dimension.parse()?;
@@ -136,10 +135,10 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             .par_iter()
             .map(|candidate| {
                 let other_sparse_vector = &vectors[*candidate - dropped_so_far];
-                return (
+                (
                     *candidate,
                     sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector),
-                );
+                )
             })
             .filter(|x| x.1 < THRESHOLD)
             .min_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
