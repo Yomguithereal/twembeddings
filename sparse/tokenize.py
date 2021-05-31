@@ -3,16 +3,28 @@ import csv
 import math
 from multiprocessing import Pool
 from fog.tokenizers import WordTokenizer
-from sparse.stop_words import STOP_WORDS_FR
+from sparse.stop_words import STOP_WORDS_FR, STOP_WORDS_EN
 from tqdm import tqdm
 from collections import Counter
+
+def prepare_stoplist():
+    stoplist = set()
+
+    for word in STOP_WORDS_EN + STOP_WORDS_FR:
+        stoplist.add(word)
+        stoplist.add(word + "'")
+        stoplist.add(word + "’")
+        stoplist.add("'" + word)
+        stoplist.add("’" + word)
+
+    return stoplist
 
 tokenizer = WordTokenizer(
     keep=['word'],
     lower=True,
     unidecode=True,
     split_hashtags=True,
-    stoplist=STOP_WORDS_FR + [t + "'" for t in STOP_WORDS_FR] + [t + "’" for t in STOP_WORDS_FR],
+    stoplist=prepare_stoplist(),
     reduce_words=True,
     decode_html_entities=True
 )
