@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::error::Error;
 use std::process;
 
@@ -70,7 +70,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
     let mut inverted_index: Vec<VecDeque<usize>> = Vec::with_capacity(VOC_SIZE);
     let mut vectors: VecDeque<SparseVector> = VecDeque::new();
     let mut nearest_neighbors: Vec<(usize, f64)> = Vec::new();
-    let mut candidates: HashSet<usize> = HashSet::with_capacity(10_000);
+    let mut candidates: SparseSet<bool> = SparseSet::with_capacity(WINDOW);
 
     for _ in 0..VOC_SIZE {
         inverted_index.push(VecDeque::new());
@@ -99,6 +99,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         }
 
         cosine_helper_set.clear();
+        candidates.clear();
 
         let iterator = record.dimensions.split('|').zip(record.weights.split('|'));
 
@@ -119,7 +120,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
             if dim_tested < QUERY_SIZE {
                 for candidate in deque.iter() {
-                    candidates.insert(*candidate);
+                    candidates.insert(*candidate - dropped_so_far, true);
                 }
                 dim_tested += 1;
             }
@@ -131,9 +132,12 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
         // Finding the nearest neighbor
         let best: Option<(usize, f64)> = candidates
+            .iter()
+            .map(|x| x.key())
+            .collect::<Vec<usize>>()
             .par_iter()
             .map(|candidate| {
-                let other_sparse_vector = &vectors[*candidate - dropped_so_far];
+                let other_sparse_vector = &vectors[*candidate];
                 (
                     *candidate,
                     sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector),
@@ -141,8 +145,6 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             })
             .filter(|x| x.1 < THRESHOLD)
             .min_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
-
-        candidates.clear();
 
         match best {
             Some((c, d)) => {
@@ -175,18 +177,18 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
     // println!("{:?}", nearest_neighbors.len());
 
-    let with_nearest_neighbor: Vec<(usize, f64)> = nearest_neighbors
-        .into_iter()
-        .enumerate()
-        .filter(|(j, c)| j != &c.0)
-        .map(|(_, c)| c)
-        .collect();
+    // let with_nearest_neighbor: Vec<(usize, f64)> = nearest_neighbors
+    //     .into_iter()
+    //     .enumerate()
+    //     .filter(|(j, c)| j != &c.0)
+    //     .map(|(_, c)| c)
+    //     .collect();
 
-    println!(
-        "{:?}, {:?}",
-        with_nearest_neighbor,
-        with_nearest_neighbor.len()
-    );
+    // println!(
+    //     "{:?}, {:?}",
+    //     with_nearest_neighbor,
+    //     with_nearest_neighbor.len()
+    // );
 
     Ok(())
 }
