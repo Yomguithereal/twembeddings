@@ -24,6 +24,7 @@ const TICK: usize = 1_000;
 const QUERY_SIZE: u8 = 5;
 const VOC_SIZE: usize = 300_000;
 
+#[inline]
 fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) -> f64 {
     let mut product = 0.0;
 
@@ -50,11 +51,9 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &SparseVector) ->
 // TODO: start from window directly to easy test
 // TODO: try clippy
 // TODO: sparse set with array
-// TODO: try inlining
 // TODO: what about mentions?
 // TODO: improve the sparse sets myself
 // TODO: I don't need sparse set, only flat arrays, because I never iterate on set items (apart from the candidates hashset)
-// TODO: try f32
 // TODO: use #[cfg] for stats within the function
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
