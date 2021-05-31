@@ -67,10 +67,14 @@ fn clustering() -> Result<(), Box<dyn Error>> {
     );
 
     let mut cosine_helper_set: SparseSet<f64> = SparseSet::with_capacity(VOC_SIZE);
-    let mut inverted_index: SparseSet<VecDeque<usize>> = SparseSet::with_capacity(VOC_SIZE);
+    let mut inverted_index: Vec<VecDeque<usize>> = Vec::with_capacity(VOC_SIZE);
     let mut vectors: VecDeque<SparseVector> = VecDeque::new();
     let mut nearest_neighbors: Vec<(usize, f64)> = Vec::new();
     let mut candidates: HashSet<usize> = HashSet::with_capacity(10_000);
+
+    for _ in 0..VOC_SIZE {
+        inverted_index.push(VecDeque::new());
+    }
 
     for result in rdr.deserialize() {
         if i >= LIMIT {
@@ -111,12 +115,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         let mut dim_tested: u8 = 0;
 
         for (dim, _) in sparse_vector.iter() {
-            // TODO: do better
-            if !inverted_index.contains(*dim) {
-                inverted_index.insert(*dim, VecDeque::new());
-            }
-
-            let deque = inverted_index.get_mut(*dim).unwrap();
+            let deque = &mut inverted_index[*dim];
 
             if dim_tested < QUERY_SIZE {
                 for candidate in deque.iter() {
@@ -162,7 +161,7 @@ fn clustering() -> Result<(), Box<dyn Error>> {
             let to_remove = vectors.pop_front().unwrap();
 
             for (dim, _) in to_remove {
-                let deque = inverted_index.get_mut(dim).unwrap();
+                let deque = &mut inverted_index[dim];
                 deque.pop_front().unwrap();
             }
 
@@ -176,14 +175,18 @@ fn clustering() -> Result<(), Box<dyn Error>> {
 
     // println!("{:?}", nearest_neighbors.len());
 
-    // let with_nearest_neighbor: Vec<(usize, f64)> = nearest_neighbors
-    //     .into_iter()
-    //     .enumerate()
-    //     .filter(|(j, c)| j != &c.0)
-    //     .map(|(_, c)| c)
-    //     .collect();
+    let with_nearest_neighbor: Vec<(usize, f64)> = nearest_neighbors
+        .into_iter()
+        .enumerate()
+        .filter(|(j, c)| j != &c.0)
+        .map(|(_, c)| c)
+        .collect();
 
-    // println!("{:?}, {:?}", with_nearest_neighbor, with_nearest_neighbor.len());
+    println!(
+        "{:?}, {:?}",
+        with_nearest_neighbor,
+        with_nearest_neighbor.len()
+    );
 
     Ok(())
 }
