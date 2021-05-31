@@ -161,8 +161,8 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         if vectors.len() > WINDOW {
             let to_remove = vectors.pop_front().unwrap();
 
-            for (dim, _) in to_remove.iter() {
-                let deque = inverted_index.get_mut(*dim).unwrap();
+            for (dim, _) in to_remove {
+                let deque = inverted_index.get_mut(dim).unwrap();
                 deque.pop_front().unwrap();
             }
 
