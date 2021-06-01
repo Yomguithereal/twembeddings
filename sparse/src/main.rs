@@ -90,61 +90,57 @@ fn clustering() -> Result<(), Box<dyn Error>> {
         // println!("{:?}", record);
 
         let mut sparse_vector: SparseVector = Vec::new();
+        let mut best: Option<(usize, f64)> = None;
 
-        if record.dimensions.is_empty() {
-            nearest_neighbors.push((i, 0.0));
-            i += 1;
-            vectors.push_back(sparse_vector);
-            continue;
-        }
+        if !record.dimensions.is_empty() {
+            cosine_helper_set.clear();
+            candidates.clear();
 
-        cosine_helper_set.clear();
-        candidates.clear();
+            let iterator = record.dimensions.split('|').zip(record.weights.split('|'));
 
-        let iterator = record.dimensions.split('|').zip(record.weights.split('|'));
-
-        for (dimension, weight) in iterator {
-            let dimension: usize = dimension.parse()?;
-            let weight: f64 = weight.parse()?;
-            // println!("Dimension: {:?}, Weight: {:?}", dimension, weight);
-            sparse_vector.push((dimension, weight));
-            // println!("Vector: {:?}", sparse_vector);
-            cosine_helper_set.insert(dimension, weight);
-        }
-
-        // Indexing and gathering candidates
-        let mut dim_tested: u8 = 0;
-
-        for (dim, _) in sparse_vector.iter() {
-            let deque = &mut inverted_index[*dim];
-
-            if dim_tested < QUERY_SIZE {
-                for candidate in deque.iter() {
-                    candidates.insert(*candidate - dropped_so_far, true);
-                }
-                dim_tested += 1;
+            for (dimension, weight) in iterator {
+                let dimension: usize = dimension.parse()?;
+                let weight: f64 = weight.parse()?;
+                // println!("Dimension: {:?}, Weight: {:?}", dimension, weight);
+                sparse_vector.push((dimension, weight));
+                // println!("Vector: {:?}", sparse_vector);
+                cosine_helper_set.insert(dimension, weight);
             }
 
-            deque.push_back(i);
+            // Indexing and gathering candidates
+            let mut dim_tested: u8 = 0;
+
+            for (dim, _) in sparse_vector.iter() {
+                let deque = &mut inverted_index[*dim];
+
+                if dim_tested < QUERY_SIZE {
+                    for candidate in deque.iter() {
+                        candidates.insert(*candidate - dropped_so_far, true);
+                    }
+                    dim_tested += 1;
+                }
+
+                deque.push_back(i);
+            }
+
+            // println!("{:?}", candidates.len());
+
+            // Finding the nearest neighbor
+            best = candidates
+                .iter()
+                .map(|x| x.key())
+                .collect::<Vec<usize>>()
+                .par_iter()
+                .map(|candidate| {
+                    let other_sparse_vector = &vectors[*candidate];
+                    (
+                        *candidate,
+                        sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector),
+                    )
+                })
+                .filter(|x| x.1 < THRESHOLD)
+                .min_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
         }
-
-        // println!("{:?}", candidates.len());
-
-        // Finding the nearest neighbor
-        let best: Option<(usize, f64)> = candidates
-            .iter()
-            .map(|x| x.key())
-            .collect::<Vec<usize>>()
-            .par_iter()
-            .map(|candidate| {
-                let other_sparse_vector = &vectors[*candidate];
-                (
-                    *candidate,
-                    sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector),
-                )
-            })
-            .filter(|x| x.1 < THRESHOLD)
-            .min_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
 
         match best {
             Some((c, d)) => {
