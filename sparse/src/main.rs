@@ -114,8 +114,8 @@ fn clustering() -> Result<(), Box<dyn Error>> {
                 let deque = &mut inverted_index[*dim];
 
                 if dim_tested < QUERY_SIZE {
-                    for candidate in deque.iter() {
-                        candidates.insert(*candidate - dropped_so_far, true);
+                    for &candidate in deque.iter() {
+                        candidates.insert(candidate - dropped_so_far, true);
                     }
                     dim_tested += 1;
                 }
@@ -131,10 +131,10 @@ fn clustering() -> Result<(), Box<dyn Error>> {
                 .map(|x| x.key())
                 .collect::<Vec<usize>>()
                 .par_iter()
-                .map(|candidate| {
-                    let other_sparse_vector = &vectors[*candidate];
+                .map(|&candidate| {
+                    let other_sparse_vector = &vectors[candidate];
                     (
-                        *candidate,
+                        candidate,
                         sparse_dot_product_distance(&cosine_helper_set, &other_sparse_vector),
                     )
                 })
