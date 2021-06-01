@@ -45,14 +45,8 @@ fn sparse_dot_product_distance(helper: &SparseSet<f64>, other: &[(usize, f64)]) 
 
 // TODO: verify mean/median candidate set size
 // TODO: use a max clamp for normalize and for distance
-// TODO: candidate set can also be a sparse set?
 // TODO: sanity tests
-// TODO: canopy + canopy variant where dim has exactly same value?
 // TODO: start from window directly to easy test
-// TODO: sparse set with array
-// TODO: what about mentions?
-// TODO: improve the sparse sets myself
-// TODO: I don't need sparse set, only flat arrays, because I never iterate on set items (apart from the candidates hashset)
 // TODO: use #[cfg] for stats within the function
 fn clustering() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_path("../data/vectors.csv")?;
